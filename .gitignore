@@ -1,0 +1,8 @@
+.zcode/
+__pycache__
+node_modules
+dist
+.env
+weights
+*.pt
+.DS_Store
