@@ -34,18 +34,20 @@ async def lifespan(app: FastAPI):
     mongo_client = AsyncIOMotorClient(MONGO_URI)
     db = mongo_client["mango"]
     await db.mangoes.create_index("mango_id", unique=True)
-    state = request.app.state
-    if not getattr(state, "_models_loaded", False):
-        state.detector = YOLO("best.pt").to(device)
-        state.clip_model = CLIPModel.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            local_files_only=True,
-        ).to(device)
-        state.clip_processor = CLIPProcessor.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            local_files_only=True,
-        )
-        state._models_loaded = True
+    
+    # Preload models at startup
+    state = app.state
+    state.detector = YOLO("best.pt").to(device)
+    state.clip_model = CLIPModel.from_pretrained(
+        "openai/clip-vit-base-patch32",
+        local_files_only=False,  # Allow download if not cached
+    ).to(device)
+    state.clip_processor = CLIPProcessor.from_pretrained(
+        "openai/clip-vit-base-patch32",
+        local_files_only=False,
+    )
+    state._models_loaded = True
+    
     yield
     mongo_client.close()
 
@@ -289,21 +291,3 @@ async def get_image(mango_id: str, photo_id: str):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/api/preload")
-async def preload_models(request: Request):
-    """Тяжёлые модели загружаются здесь, а не в lifespan."""
-    state = request.app.state
-    if not getattr(state, "_models_loaded", False):
-        state.detector = YOLO("best.pt").to(device)
-        state.clip_model = CLIPModel.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            local_files_only=True,
-        ).to(device)
-        state.clip_processor = CLIPProcessor.from_pretrained(
-            "openai/clip-vit-base-patch32",
-            local_files_only=True,
-        )
-        state._models_loaded = True
-    return {"status": "models ready"}
