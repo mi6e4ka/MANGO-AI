@@ -4,5 +4,5 @@ node_modules
 dist
 .env
 weights
-*.pt
+yolov8s-worldv2.pt
 .DS_Store
